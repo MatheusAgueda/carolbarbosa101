@@ -1,73 +1,101 @@
 (function () {
   'use strict';
 
-  // ===== State =====
-  const state = {
+  /* ========================================
+   *  STATE
+   * ======================================== */
+  var state = {
     currentValue: '0',
     previousValue: '',
     operator: null,
     waitingForOperand: false,
     expression: '',
     lastEquals: false,
+    lastOperand: '',
+    lastOperator: null
   };
 
-  // ===== DOM Elements =====
-  const resultEl = document.getElementById('result');
-  const expressionEl = document.getElementById('expression');
-  const keysContainer = document.querySelector('.calculator__keys');
+  /* ========================================
+   *  DOM REFERENCES
+   * ======================================== */
+  var resultEl = document.getElementById('result');
+  var expressionEl = document.getElementById('expression');
+  var keysContainer = document.getElementById('keys');
 
-  // ===== Display Helpers =====
-  function formatDisplay(value) {
-    if (value === 'Error') return 'Error';
+  /* ========================================
+   *  NUMBER FORMATTING (pt-BR)
+   * ======================================== */
+  function formatNumber(value) {
+    if (value === 'Error') return 'Erro';
+    if (value === '' || value === undefined || value === null) return '0';
 
-    const num = parseFloat(value);
+    var str = String(value);
+    var num = parseFloat(str);
     if (isNaN(num)) return '0';
 
-    if (value.includes('.') && value.endsWith('.')) {
-      return num.toLocaleString('pt-BR') + ',';
+    // Handle numbers being typed (preserve trailing dot and zeros)
+    if (str.indexOf('.') !== -1 && str.charAt(str.length - 1) === '.') {
+      return formatInteger(str.slice(0, -1)) + ',';
     }
 
-    const trailingZeros = value.includes('.')
-      ? value.length - value.indexOf('.') - 1
-      : 0;
-
-    if (value.includes('.') && value.endsWith('0')) {
-      const parts = num.toLocaleString('pt-BR', {
-        minimumFractionDigits: trailingZeros,
-        maximumFractionDigits: trailingZeros,
-      });
-      return parts;
+    if (str.indexOf('.') !== -1) {
+      var parts = str.split('.');
+      var intPart = parts[0];
+      var decPart = parts[1];
+      return formatInteger(intPart) + ',' + decPart;
     }
 
-    if (Number.isInteger(num) && !value.includes('.')) {
-      return num.toLocaleString('pt-BR');
-    }
-
-    return num.toLocaleString('pt-BR', {
-      minimumFractionDigits: trailingZeros,
-      maximumFractionDigits: 12,
-    });
+    return formatInteger(str);
   }
 
+  function formatInteger(str) {
+    var isNeg = str.charAt(0) === '-';
+    var digits = isNeg ? str.slice(1) : str;
+    var result = '';
+    var count = 0;
+    for (var i = digits.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 === 0) {
+        result = '.' + result;
+      }
+      result = digits.charAt(i) + result;
+      count++;
+    }
+    return isNeg ? '-' + result : result;
+  }
+
+  /* ========================================
+   *  DISPLAY UPDATE
+   * ======================================== */
   function updateDisplay() {
-    resultEl.textContent = formatDisplay(state.currentValue);
+    var displayText = formatNumber(state.currentValue);
+    resultEl.textContent = displayText;
     expressionEl.textContent = state.expression;
 
-    if (resultEl.textContent.length > 12) {
+    // Shrink text for long results
+    if (displayText.length > 13) {
       resultEl.classList.add('shrink');
     } else {
       resultEl.classList.remove('shrink');
     }
+
+    // Error styling
+    if (state.currentValue === 'Error') {
+      resultEl.classList.add('error');
+    } else {
+      resultEl.classList.remove('error');
+    }
   }
 
-  // ===== Calculation =====
+  /* ========================================
+   *  CALCULATION ENGINE
+   * ======================================== */
   function calculate(a, b, op) {
-    const numA = parseFloat(a);
-    const numB = parseFloat(b);
+    var numA = parseFloat(a);
+    var numB = parseFloat(b);
 
     if (isNaN(numA) || isNaN(numB)) return 'Error';
 
-    let result;
+    var result;
     switch (op) {
       case 'add':
         result = numA + numB;
@@ -86,36 +114,51 @@
         return 'Error';
     }
 
-    // Avoid floating-point display issues
+    // Fix floating-point precision (e.g. 0.1 + 0.2)
     return parseFloat(result.toPrecision(12)).toString();
   }
 
-  function getOperatorSymbol(op) {
-    const symbols = {
+  function getSymbol(op) {
+    var map = {
       add: '+',
       subtract: '\u2212',
       multiply: '\u00D7',
-      divide: '\u00F7',
+      divide: '\u00F7'
     };
-    return symbols[op] || '';
+    return map[op] || '';
   }
 
-  // ===== Highlight Active Operator =====
-  function highlightOperator(action) {
-    keysContainer.querySelectorAll('.key--operator').forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.action === action);
-    });
+  /* ========================================
+   *  OPERATOR HIGHLIGHT
+   * ======================================== */
+  function setActiveOperator(action) {
+    var buttons = keysContainer.querySelectorAll('.key--operator');
+    for (var i = 0; i < buttons.length; i++) {
+      if (buttons[i].getAttribute('data-action') === action) {
+        buttons[i].classList.add('active');
+      } else {
+        buttons[i].classList.remove('active');
+      }
+    }
   }
 
-  function clearOperatorHighlight() {
-    keysContainer.querySelectorAll('.key--operator').forEach(function (btn) {
-      btn.classList.remove('active');
-    });
+  function clearActiveOperator() {
+    var buttons = keysContainer.querySelectorAll('.key--operator');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.remove('active');
+    }
   }
 
-  // ===== Input Handlers =====
+  /* ========================================
+   *  INPUT: DIGIT
+   * ======================================== */
   function inputDigit(digit) {
+    if (state.currentValue === 'Error') {
+      handleClear();
+    }
+
     if (state.lastEquals) {
+      // Start a brand new calculation
       state.currentValue = digit;
       state.expression = '';
       state.previousValue = '';
@@ -127,14 +170,23 @@
     } else {
       if (state.currentValue === '0') {
         state.currentValue = digit;
-      } else if (state.currentValue.length < 15) {
+      } else if (state.currentValue === '-0') {
+        state.currentValue = '-' + digit;
+      } else if (state.currentValue.replace(/[^0-9]/g, '').length < 15) {
         state.currentValue += digit;
       }
     }
-    clearOperatorHighlight();
+    clearActiveOperator();
   }
 
+  /* ========================================
+   *  INPUT: DECIMAL
+   * ======================================== */
   function inputDecimal() {
+    if (state.currentValue === 'Error') {
+      handleClear();
+    }
+
     if (state.lastEquals) {
       state.currentValue = '0.';
       state.expression = '';
@@ -147,55 +199,101 @@
     if (state.waitingForOperand) {
       state.currentValue = '0.';
       state.waitingForOperand = false;
+      clearActiveOperator();
       return;
     }
 
-    if (!state.currentValue.includes('.')) {
+    if (state.currentValue.indexOf('.') === -1) {
       state.currentValue += '.';
     }
+    clearActiveOperator();
   }
 
-  function handleOperator(nextOperator) {
-    state.lastEquals = false;
-
-    if (state.operator && !state.waitingForOperand) {
-      var result = calculate(state.previousValue, state.currentValue, state.operator);
-      state.currentValue = result;
-      state.expression =
-        formatDisplay(result) + ' ' + getOperatorSymbol(nextOperator);
-      state.previousValue = result;
-    } else {
-      state.previousValue = state.currentValue;
-      state.expression =
-        formatDisplay(state.currentValue) + ' ' + getOperatorSymbol(nextOperator);
+  /* ========================================
+   *  OPERATOR
+   * ======================================== */
+  function handleOperator(nextOp) {
+    if (state.currentValue === 'Error') {
+      handleClear();
     }
 
-    state.operator = nextOperator;
+    state.lastEquals = false;
+
+    var currentNum = state.currentValue;
+
+    if (state.operator && !state.waitingForOperand) {
+      // Chain calculation: e.g. 5 + 3 * ...
+      var result = calculate(state.previousValue, currentNum, state.operator);
+      if (result === 'Error') {
+        state.currentValue = 'Error';
+        state.expression = '';
+        state.previousValue = '';
+        state.operator = null;
+        updateDisplay();
+        return;
+      }
+      state.currentValue = result;
+      state.previousValue = result;
+      state.expression = formatNumber(result) + ' ' + getSymbol(nextOp);
+    } else {
+      state.previousValue = currentNum;
+      state.expression = formatNumber(currentNum) + ' ' + getSymbol(nextOp);
+    }
+
+    state.operator = nextOp;
     state.waitingForOperand = true;
-    highlightOperator(nextOperator);
+    setActiveOperator(nextOp);
   }
 
+  /* ========================================
+   *  EQUALS
+   * ======================================== */
   function handleEquals() {
+    if (state.currentValue === 'Error') {
+      handleClear();
+      return;
+    }
+
+    // Repeat last operation (e.g. press = = = to keep adding)
+    if (state.lastEquals && state.lastOperator) {
+      var repeatResult = calculate(state.currentValue, state.lastOperand, state.lastOperator);
+      state.expression =
+        formatNumber(state.currentValue) +
+        ' ' + getSymbol(state.lastOperator) +
+        ' ' + formatNumber(state.lastOperand) +
+        ' =';
+      state.currentValue = repeatResult;
+      clearActiveOperator();
+      updateDisplay();
+      return;
+    }
+
     if (!state.operator || state.waitingForOperand) return;
 
-    var result = calculate(state.previousValue, state.currentValue, state.operator);
+    var operand = state.currentValue;
+    var result = calculate(state.previousValue, operand, state.operator);
 
     state.expression =
-      formatDisplay(state.previousValue) +
-      ' ' +
-      getOperatorSymbol(state.operator) +
-      ' ' +
-      formatDisplay(state.currentValue) +
+      formatNumber(state.previousValue) +
+      ' ' + getSymbol(state.operator) +
+      ' ' + formatNumber(operand) +
       ' =';
+
+    // Save for repeat
+    state.lastOperand = operand;
+    state.lastOperator = state.operator;
 
     state.currentValue = result;
     state.previousValue = '';
     state.operator = null;
     state.waitingForOperand = false;
     state.lastEquals = true;
-    clearOperatorHighlight();
+    clearActiveOperator();
   }
 
+  /* ========================================
+   *  CLEAR (AC)
+   * ======================================== */
   function handleClear() {
     state.currentValue = '0';
     state.previousValue = '';
@@ -203,60 +301,104 @@
     state.waitingForOperand = false;
     state.expression = '';
     state.lastEquals = false;
-    clearOperatorHighlight();
+    state.lastOperand = '';
+    state.lastOperator = null;
+    clearActiveOperator();
   }
 
+  /* ========================================
+   *  BACKSPACE
+   * ======================================== */
   function handleBackspace() {
+    if (state.currentValue === 'Error') {
+      handleClear();
+      return;
+    }
     if (state.lastEquals || state.waitingForOperand) return;
 
     if (state.currentValue.length > 1) {
-      state.currentValue = state.currentValue.slice(0, -1);
+      // Handle negative single digit: -5 -> 0
+      if (state.currentValue.length === 2 && state.currentValue.charAt(0) === '-') {
+        state.currentValue = '0';
+      } else {
+        state.currentValue = state.currentValue.slice(0, -1);
+      }
     } else {
       state.currentValue = '0';
     }
   }
 
+  /* ========================================
+   *  PERCENTAGE
+   * ======================================== */
   function handlePercent() {
+    if (state.currentValue === 'Error') return;
+
     var num = parseFloat(state.currentValue);
     if (isNaN(num)) return;
 
-    if (state.operator && state.previousValue) {
-      // Percentage of the previous value (e.g. 200 + 10% = 200 + 20)
+    if (state.operator && state.previousValue !== '') {
+      // Context-aware: 200 + 10% means 200 + (200 * 10 / 100) = 220
       var base = parseFloat(state.previousValue);
-      state.currentValue = ((base * num) / 100).toString();
+      var percentValue = (base * num) / 100;
+      state.currentValue = parseFloat(percentValue.toPrecision(12)).toString();
     } else {
-      state.currentValue = (num / 100).toString();
+      // Simple: 50% = 0.5
+      state.currentValue = parseFloat((num / 100).toPrecision(12)).toString();
+      state.lastEquals = false;
     }
-    state.lastEquals = false;
+    clearActiveOperator();
   }
 
-  // ===== Event Delegation =====
+  /* ========================================
+   *  TOGGLE SIGN (+/-)
+   * ======================================== */
+  function handleToggleSign() {
+    if (state.currentValue === 'Error') return;
+    if (state.currentValue === '0') return;
+
+    if (state.currentValue.charAt(0) === '-') {
+      state.currentValue = state.currentValue.slice(1);
+    } else {
+      state.currentValue = '-' + state.currentValue;
+    }
+  }
+
+  /* ========================================
+   *  BUTTON PRESS VISUAL FEEDBACK
+   * ======================================== */
+  function flashKey(button) {
+    button.classList.remove('pressed');
+    // Force reflow for re-trigger
+    void button.offsetWidth;
+    button.classList.add('pressed');
+    setTimeout(function () {
+      button.classList.remove('pressed');
+    }, 250);
+  }
+
+  /* ========================================
+   *  EVENT: CLICK
+   * ======================================== */
   keysContainer.addEventListener('click', function (e) {
     var key = e.target.closest('.key');
     if (!key) return;
 
-    var action = key.dataset.action;
-    var value = key.dataset.value;
+    flashKey(key);
 
-    if (value !== undefined) {
+    var action = key.getAttribute('data-action');
+    var value = key.getAttribute('data-value');
+
+    if (value !== null) {
       inputDigit(value);
     } else if (action) {
       switch (action) {
-        case 'clear':
-          handleClear();
-          break;
-        case 'backspace':
-          handleBackspace();
-          break;
-        case 'percent':
-          handlePercent();
-          break;
-        case 'decimal':
-          inputDecimal();
-          break;
-        case 'equals':
-          handleEquals();
-          break;
+        case 'clear':       handleClear(); break;
+        case 'backspace':   handleBackspace(); break;
+        case 'percent':     handlePercent(); break;
+        case 'toggle-sign': handleToggleSign(); break;
+        case 'decimal':     inputDecimal(); break;
+        case 'equals':      handleEquals(); break;
         case 'add':
         case 'subtract':
         case 'multiply':
@@ -269,38 +411,62 @@
     updateDisplay();
   });
 
-  // ===== Keyboard Support =====
+  /* ========================================
+   *  EVENT: KEYBOARD
+   * ======================================== */
+  function findKeyButton(dataAction, dataValue) {
+    if (dataValue !== undefined) {
+      return keysContainer.querySelector('[data-value="' + dataValue + '"]');
+    }
+    return keysContainer.querySelector('[data-action="' + dataAction + '"]');
+  }
+
   document.addEventListener('keydown', function (e) {
     var key = e.key;
+    var btn = null;
 
     if (key >= '0' && key <= '9') {
       inputDigit(key);
+      btn = findKeyButton(null, key);
     } else if (key === '.' || key === ',') {
       inputDecimal();
+      btn = findKeyButton('decimal');
     } else if (key === '+') {
       handleOperator('add');
+      btn = findKeyButton('add');
     } else if (key === '-') {
       handleOperator('subtract');
+      btn = findKeyButton('subtract');
     } else if (key === '*') {
       handleOperator('multiply');
+      btn = findKeyButton('multiply');
     } else if (key === '/') {
       e.preventDefault();
       handleOperator('divide');
+      btn = findKeyButton('divide');
     } else if (key === '%') {
       handlePercent();
+      btn = findKeyButton('percent');
     } else if (key === 'Enter' || key === '=') {
+      e.preventDefault();
       handleEquals();
+      btn = findKeyButton('equals');
     } else if (key === 'Backspace') {
       handleBackspace();
-    } else if (key === 'Escape' || key === 'c' || key === 'C') {
+    } else if (key === 'Escape') {
       handleClear();
+      btn = findKeyButton('clear');
     } else {
-      return;
+      return; // Ignore other keys
     }
 
+    if (btn) flashKey(btn);
     updateDisplay();
   });
 
-  // ===== Initial Render =====
+  /* ========================================
+   *  INITIAL RENDER
+   * ======================================== */
   updateDisplay();
+
 })();

@@ -4,48 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calculadora Oficial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <div class="calculator">
-    <header class="calculator__header">
-      <h1>Calculadora Oficial</h1>
-    </header>
-
     <div class="calculator__display">
-      <span class="calculator__expression" id="expression"></span>
-      <span class="calculator__result" id="result">0</span>
+      <div class="calculator__expression" id="expression"></div>
+      <div class="calculator__result" id="result">0</div>
     </div>
 
-    <div class="calculator__keys">
-      <!-- Row 1 -->
-      <button class="key key--function" data-action="clear">C</button>
-      <button class="key key--function" data-action="backspace">&#9003;</button>
-      <button class="key key--function" data-action="percent">%</button>
-      <button class="key key--operator" data-action="divide">&divide;</button>
+    <div class="calculator__keys" id="keys">
+      <!-- Row 1: Functions + Operator -->
+      <button class="key key--function" data-action="clear" type="button">AC</button>
+      <button class="key key--function" data-action="toggle-sign" type="button">&plus;&sol;&minus;</button>
+      <button class="key key--function" data-action="percent" type="button">%</button>
+      <button class="key key--operator" data-action="divide" type="button">&divide;</button>
 
       <!-- Row 2 -->
-      <button class="key key--number" data-value="7">7</button>
-      <button class="key key--number" data-value="8">8</button>
-      <button class="key key--number" data-value="9">9</button>
-      <button class="key key--operator" data-action="multiply">&times;</button>
+      <button class="key key--number" data-value="7" type="button">7</button>
+      <button class="key key--number" data-value="8" type="button">8</button>
+      <button class="key key--number" data-value="9" type="button">9</button>
+      <button class="key key--operator" data-action="multiply" type="button">&times;</button>
 
       <!-- Row 3 -->
-      <button class="key key--number" data-value="4">4</button>
-      <button class="key key--number" data-value="5">5</button>
-      <button class="key key--number" data-value="6">6</button>
-      <button class="key key--operator" data-action="subtract">&minus;</button>
+      <button class="key key--number" data-value="4" type="button">4</button>
+      <button class="key key--number" data-value="5" type="button">5</button>
+      <button class="key key--number" data-value="6" type="button">6</button>
+      <button class="key key--operator" data-action="subtract" type="button">&minus;</button>
 
       <!-- Row 4 -->
-      <button class="key key--number" data-value="1">1</button>
-      <button class="key key--number" data-value="2">2</button>
-      <button class="key key--number" data-value="3">3</button>
-      <button class="key key--operator" data-action="add">+</button>
+      <button class="key key--number" data-value="1" type="button">1</button>
+      <button class="key key--number" data-value="2" type="button">2</button>
+      <button class="key key--number" data-value="3" type="button">3</button>
+      <button class="key key--operator" data-action="add" type="button">&plus;</button>
 
       <!-- Row 5 -->
-      <button class="key key--number key--wide" data-value="0">0</button>
-      <button class="key key--number" data-action="decimal">,</button>
-      <button class="key key--equals" data-action="equals">=</button>
+      <button class="key key--number key--zero" data-value="0" type="button">0</button>
+      <button class="key key--number" data-action="decimal" type="button">,</button>
+      <button class="key key--equals" data-action="equals" type="button">&equals;</button>
     </div>
   </div>
 
